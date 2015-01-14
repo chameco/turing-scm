@@ -1,5 +1,4 @@
 SRCS = $(filter-out main.scm,$(foreach file,$(wildcard lib/*),$(notdir $(file))))
-GAME = turing
 BUILD_DIR = build
 OBJS = $(addprefix $(BUILD_DIR)/, $(SRCS:.scm=.o))
 
@@ -7,7 +6,7 @@ vpath %.scm lib
 
 .PHONY: all directories clean
 
-all: directories $(GAME)
+all: directories client server
 
 directories: $(BUILD_DIR)
 
@@ -17,7 +16,10 @@ $(BUILD_DIR):
 $(BUILD_DIR)/%.o: %.scm
 	csc -o $@ -c $<
 
-$(GAME): $(BUILD_DIR)/main.o $(OBJS)
+client: $(BUILD_DIR)/client.o $(OBJS)
+	csc -Wl,-lzmq $^ -o $@
+
+server: $(BUILD_DIR)/server.o $(OBJS)
 	csc -Wl,-lzmq $^ -o $@
 
 clean:

@@ -41,6 +41,8 @@
           running
           camera))
 
+(define (network-update-game state running camera)
+
 (define (draw-game state camera screen)
   (sdl-fill-rect screen #f (make-sdl-color 255 255 255))
   (let loop ([l state])

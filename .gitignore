@@ -1,3 +1,4 @@
 *.o
 session.vim
-turing
+client
+server
