@@ -1,6 +1,5 @@
 (declare (unit event)
-         (uses object)
-         (uses utils graphics))
+         (uses object utils graphics))
 
 (use sdl-base)
 
@@ -26,3 +25,11 @@
             running
             camera)))]
      [else (values state running camera)])))
+
+(define (client-event-handler conn)
+  (lambda (state running camera event)
+    (values state running camera)))
+
+(define (server-event-handler conn)
+  (lambda (state running camera event)
+    (values state running camera)))

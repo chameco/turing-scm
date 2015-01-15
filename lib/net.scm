@@ -3,7 +3,8 @@
 
 (use (srfi 4)
      s11n
-     ports)
+     ports
+     format)
 
 (foreign-declare "#include <zmq.h>
                   #include <stdio.h>
@@ -47,6 +48,16 @@
   (foreign-lambda* void ((long socket) (c-string topic))
     "
     int rc = zmq_setsockopt((void *) socket, ZMQ_SUBSCRIBE, topic, strlen(topic));
+    if (rc == -1) {
+        printf(\"E: connect failed: %s\\n\", zmq_strerror(errno));
+        exit(1);
+    }
+    "))
+
+(define set-socket-topic-all
+  (foreign-lambda* void ((long socket))
+    "
+    int rc = zmq_setsockopt((void *) socket, ZMQ_SUBSCRIBE, 0, 0);
     if (rc == -1) {
         printf(\"E: connect failed: %s\\n\", zmq_strerror(errno));
         exit(1);
@@ -104,7 +115,7 @@
   (let ([outgoing (make-socket context ZMQ_PUSH)]
         [incoming (make-socket context ZMQ_SUB)])
     (socket-connect outgoing (string-append "tcp://" ip ":5558"))
-    (set-socket-topic incoming "turing")
+    (set-socket-topic-all incoming)
     (socket-connect incoming (string-append "tcp://" ip ":5559"))
     (cons outgoing incoming)))
 
@@ -115,14 +126,28 @@
     (socket-bind incoming (string-append "tcp://*:5558"))
     (cons outgoing incoming)))
 
-(define (push-output conn msg size)
-  (socket-send (car conn) msg size))
+(define (push-output conn msg)
+  (socket-send (car conn) msg (u8vector-length msg)))
 
 (define (pull-input conn size)
   (socket-receive (cdr conn) size))
 
-(define (serialize-state s) (string->u8vector (with-output-to-string (lambda () (serialize s)))))
+(define send-state
+  (let ([last-sent #f])
+   (lambda (conn state)
+     (if (not (equal? state last-sent))
+       (let* ([to-send (with-output-to-string (lambda () (serialize state)))]
+              [len (string-length to-send)])
+         (debug "sending")
+         (push-output conn (string->u8vector (format #f "~16,'0d" len)))
+         (push-output conn (string->u8vector to-send))
+         (set! last-sent state))))))
 
-(define (deserialize-state s) (with-input-from-string (u8vector->string s) (lambda () (deserialize))))
+(define (receive-state conn)
+  (let ([len (string->number (u8vector->string (pull-input conn 16)))])
+   (if len
+     (let ([state-string (pull-input conn len)])
+      (with-input-from-string (u8vector->string state-string) (lambda () (deserialize))))
+     (list))))
 
-(define (get-owner-id) 'myself)
+(define (get-owner-id conn) 'myself) ; FIXME
