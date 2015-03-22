@@ -138,7 +138,6 @@
      (if (not (equal? state last-sent))
        (let* ([to-send (with-output-to-string (lambda () (serialize state)))]
               [len (string-length to-send)])
-         (debug "sending")
          (push-output conn (string->u8vector (format #f "~16,'0d" len)))
          (push-output conn (string->u8vector to-send))
          (set! last-sent state))))))
